@@ -25,7 +25,7 @@ bootMedians(data, testIds, refIds, idCol = 1L, binCol = "lengthBin",
 
 \item{nBoot}{\code{integer}. The number of bootstrap iterations to be performed}
 
-\item{minGenes}{The minimum number of IDs required to conduct a bootstrap procedure with any meaning.}
+\item{minGenes}{\code{integer}. The minimum number of IDs required to conduct a bootstrap procedure with any meaning.}
 
 \item{...}{Passed to the function \code{mean} internally}
 
@@ -38,7 +38,8 @@ A \code{list} with components:
  \item \code{$p} The proportion of sampled differences which are > 0
  \item \code{$nGenes} The number of genes sampled at each bootstrap iteration
  \item \code{$nBoot} The number of bootstrap iterations
- \item \code{$bins} The distributions of genes amongst the binning variable in the set of test IDs
+ \item \code{$testBins} The distributions of genes amongst the binning variable in the set of test IDs
+ \item \code{$refBins} The distributions of genes amongst the binning variable in the set of reference IDs
 }
 }
 \description{

@@ -39,7 +39,8 @@
 #'  \item \code{$p} The proportion of sampled differences which are > 0
 #'  \item \code{$nGenes} The number of genes sampled at each bootstrap iteration
 #'  \item \code{$nBoot} The number of bootstrap iterations
-#'  \item \code{$bins} The distributions of genes amongst the binning variable in the set of test IDs
+#'  \item \code{$testBins} The distributions of genes amongst the binning variable in the set of test IDs
+#'  \item \code{$refBins} The distributions of genes amongst the binning variable in the set of reference IDs
 #'}
 #' @import dplyr
 #'
@@ -103,7 +104,6 @@ bootMedians <- function(data, testIds, refIds,
   
   idMatch <- c(test = sum(data$ID %in% testIds),
                ref  = sum(data$ID%in% refIds))
-  stopifnot(idMatch["ref"] > idMatch["test"])
   if (nGenes > min(idMatch)) {
     nGenes <- min(idMatch)
     message("NB: The maximum number of genes able to be bootstrapped is ", nGenes, ".\n",
