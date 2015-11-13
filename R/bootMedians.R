@@ -118,9 +118,11 @@ bootMedians <- function(data, testIds, refIds,
   
   data <- select(data, ID, bins, one_of(valCols))
   testData <- filter(data, ID %in% testIds)
-  refData <- filter(data, ID %in% refIds)
   testBins <- summarise(group_by(testData, bins), count = n())
   testBins <- mutate(testBins, p = count / sum(count))
+  refData <- filter(data, ID %in% refIds)
+  refBins <- summarise(group_by(refData, bins), count = n())
+  refBins <- mutate(refBins, p = count / sum(count))
 
   resampleTest <- ifelse(nGenes == nrow(testData), FALSE, TRUE)
   
@@ -166,7 +168,8 @@ bootMedians <- function(data, testIds, refIds,
               p = p,
               nGenes = nGenes,
               nBoot = nBoot,
-              bins = testBins))
+              testBins = testBins,
+              refBins = refBins))
   
 }
 
