@@ -119,10 +119,10 @@ bootMedians <- function(data, testIds, refIds,
   data <- select(data, ID, bins, one_of(valCols))
   testData <- filter(data, ID %in% testIds)
   testBins <- summarise(group_by(testData, bins), count = n())
-  testBins <- mutate(testBins, p = count / sum(count))
+  testBins <- mutate(ungroup(testBins), p = count / sum(count))
   refData <- filter(data, ID %in% refIds)
   refBins <- summarise(group_by(refData, bins), count = n())
-  refBins <- mutate(refBins, p = count / sum(count))
+  refBins <- mutate(ungroup(refBins), p = count / sum(count))
 
   resampleTest <- ifelse(nGenes == nrow(testData), FALSE, TRUE)
   
@@ -130,7 +130,7 @@ bootMedians <- function(data, testIds, refIds,
     
     sampleRef <- function(refData, testMeds, testBins){
       
-      wRef <- testBins$p[match(refData$bins, testBins$bin)]
+      wRef <- (testBins$p / refBins$count)[match(refData$bins, testBins$bin)]
       refSamp <- sample_n(refData, nGenes, FALSE, weight = wRef)
       refMeds <- summarise_each(refSamp, funs(median), one_of(valCols))
       meds <- testMeds - refMeds
@@ -148,8 +148,8 @@ bootMedians <- function(data, testIds, refIds,
     sampleBoth <- function(testData, refData, nGenes, testBins){
       # Ensure the sampled testData approximates the distribution of the whole by using weights
       # Assign bin weights for the reference dataset to ensure matching sampling distributions
-      wTest <- testBins$p[match(testData$bins,testBins$bin)]
-      wRef <- testBins$p[match(refData$bins, testBins$bin)]
+      wTest <- (testBins$p / testBins$count) [match(testData$bins,testBins$bin)]
+      wRef <- (testBins$p / refBins$count)[match(refData$bins, testBins$bin)]
       testSamp <- sample_n(testData, nGenes, FALSE, weight = wTest)
       refSamp <- sample_n(refData, nGenes, FALSE, weight = wRef)
       testMeds <- summarise_each(testSamp, funs(median), one_of(valCols))
