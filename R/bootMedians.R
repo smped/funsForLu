@@ -13,6 +13,7 @@
 #' @param minGenes \code{integer}. The minimum number of IDs required to conduct a bootstrap procedure with any meaning.
 #' @param ... Passed to the function \code{mean} internally
 #' @param na.rm \code{logical}. Also passed internally to the function \code{mean}
+#' @param replace \code{logical}. Should the bootstrap use sampling with replacement (\code{replace = TRUE}) or without
 #'
 #' @details
 #'This function breaks the supplied \code{data.frame} into two sets of test IDs & reference IDs.
@@ -40,7 +41,8 @@
 #'  \item \code{$nGenes} The number of genes sampled at each bootstrap iteration
 #'  \item \code{$nBoot} The number of bootstrap iterations
 #'  \item \code{$testBins} The distributions of genes amongst the binning variable in the set of test IDs
-#'  \item \code{$refBins} The distributions of genes amongst the binning variable in the set of reference IDs
+#'  \item \code{$refBins} The distributions of genes amongst the binning variable in the set of reference IDs.
+#'  The final column represents the sampling probability for each individual gene in the corresponding bin
 #'}
 #' @import dplyr
 #'
@@ -48,8 +50,8 @@
 bootMedians <- function(data, testIds, refIds, 
                         idCol = 1L, binCol = "lengthBin", valCols = "TPM",
                         nGenes = 1000L, nBoot = 100L, 
-                        minGenes = 200L, ..., na.rm=TRUE){
- 
+                        minGenes = 200L, ..., na.rm=TRUE, replace = TRUE){
+  
   stopifnot(is.data.frame(data))
   stopifnot(is.character(testIds))
   stopifnot(is.character(refIds))
@@ -64,13 +66,14 @@ bootMedians <- function(data, testIds, refIds,
   }
   if (nBoot > 1e6) stop("You cannot bootstrap more than a million times. Sorry...")
   
-  stopifnot(any(is.integer(idCol), is.character(idCol)))
+  stopifnot(any(is.numeric(idCol), is.character(idCol)))
   if (length(idCol) > 1) {
     message("length(idCol) > 1. Only the first value will be used.")
     idCol <- idCol[1]
   }
-  if (is.integer(idCol))  { 
+  if (is.numeric(idCol))  { 
     stopifnot(idCol <= ncol(data))
+    idCol <- as.integer(idCol)
   }
   if (is.character(idCol)){
     idCol <- grep(idCol, colnames(data), value = TRUE)
@@ -78,13 +81,14 @@ bootMedians <- function(data, testIds, refIds,
   }
   data <- mutate(data, ID = data[[idCol]])   
   
-  stopifnot(any(is.integer(binCol), is.character(binCol)))
+  stopifnot(any(is.numeric(binCol), is.character(binCol)))
   if (length(binCol) > 1) {
     message("length(binCol) > 1. Only the first arguments will be used")
     binCol <- binCol[1]
   }
-  if (is.integer(binCol))  { 
+  if (is.numeric(binCol))  { 
     stopifnot(binCol <= ncol(data))
+    binCol <- as.integer(binCol)
   }
   if (is.character(binCol)){
     binCol <- grep(binCol, colnames(data), value = TRUE)
@@ -105,65 +109,50 @@ bootMedians <- function(data, testIds, refIds,
   idMatch <- c(test = sum(data$ID %in% testIds),
                ref  = sum(data$ID%in% refIds))
   if (nGenes > min(idMatch)) {
-    nGenes <- min(idMatch)
-    message("NB: The maximum number of genes able to be bootstrapped is ", nGenes, ".\n",
-            "Your test geneset will not be resampled.")
+    # If the number of genes to be sampled from (n) is less than that requested (m), 
+    # reset the value to m = n - 3
+    nGenes <- min(idMatch) - 3
+    message("NB: The maximum number of genes able to be bootstrapped is ", nGenes, ".\n")
     if (nGenes < minGenes) stop("Your test dataset is < ", minGenes, " IDs.\n",
                                 "If this is expected behaviour, ",
                                 "rerun the function changing the parameter minGenes to be below this value.\n",
                                 "The number of matching IDs in your test & reference sets are ", paste(idMatch, collapse = " & "), 
                                 " respectively")
-    
   }
   
   data <- select(data, ID, bins, one_of(valCols))
+  
+  # Set up the test data_frame
   testData <- filter(data, ID %in% testIds)
   testBins <- summarise(group_by(testData, bins), count = n())
   testBins <- mutate(ungroup(testBins), p = count / sum(count))
+  
+  # Set up the reference data_frame
   refData <- filter(data, ID %in% refIds)
   refBins <- summarise(group_by(refData, bins), count = n())
-  refBins <- mutate(ungroup(refBins), p = count / sum(count))
-
-  resampleTest <- ifelse(nGenes == nrow(testData), FALSE, TRUE)
+  refBins <- mutate(ungroup(refBins), 
+                    p = count / sum(count), 
+                    effP = testBins$p / count) # This is the probability/gene
+  # Assign bin weights for the reference dataset to ensure the matching sampling distributions
+  wRef <- refBins$effP[match(refData$bins, refBins$bin)]
   
-  if(!resampleTest){
+  sampleBoth <- function(testData, refData, nGenes, testBins, replace, wRef){
     
-    sampleRef <- function(refData, testMeds, testBins){
-      
-      wRef <- (testBins$p / refBins$count)[match(refData$bins, testBins$bin)]
-      refSamp <- sample_n(refData, nGenes, FALSE, weight = wRef)
-      refMeds <- summarise_each(refSamp, funs(median), one_of(valCols))
-      meds <- testMeds - refMeds
-      meds
-
-    }
-    
-    testMeds <- summarise_each(testData, funs(median), one_of(valCols))
-    out <-replicate(nBoot, sampleRef(refData, testMeds, testBins), simplify = FALSE)
-    
-  }
-
-  if (resampleTest){
-    
-    sampleBoth <- function(testData, refData, nGenes, testBins){
-      # Ensure the sampled testData approximates the distribution of the whole by using weights
-      # Assign bin weights for the reference dataset to ensure matching sampling distributions
-      wTest <- (testBins$p / testBins$count) [match(testData$bins,testBins$bin)]
-      wRef <- (testBins$p / refBins$count)[match(refData$bins, testBins$bin)]
-      testSamp <- sample_n(testData, nGenes, FALSE, weight = wTest)
-      refSamp <- sample_n(refData, nGenes, FALSE, weight = wRef)
-      testMeds <- summarise_each(testSamp, funs(median), one_of(valCols))
-      refMeds <- summarise_each(refSamp, funs(median), one_of(valCols))
-      meds <- testMeds - refMeds
-      meds
-    }
-    
-    out <- replicate(nBoot, sampleBoth(testData, refData, nGenes,testBins), simplify = FALSE)
+    testSamp <- sample_n(testData, nGenes, replace)
+    refSamp <- sample_n(refData, nGenes, replace, weight = wRef)
+    testMeds <- summarise_each(testSamp, funs(median), one_of(valCols))
+    refMeds <- summarise_each(refSamp, funs(median), one_of(valCols))
+    meds <- testMeds - refMeds
+    meds
     
   }
   
+  out <- replicate(nBoot, 
+                   sampleBoth(testData, refData, nGenes, testBins, replace, wRef), 
+                   simplify = FALSE)
   out <- bind_rows(out)
   p <- vapply(out,function(x){mean(x > 0, na.rm =na.rm, ...)}, numeric(1))
+  
   return(list(samples = out,
               p = p,
               nGenes = nGenes,

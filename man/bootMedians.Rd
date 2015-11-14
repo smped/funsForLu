@@ -6,7 +6,7 @@
 \usage{
 bootMedians(data, testIds, refIds, idCol = 1L, binCol = "lengthBin",
   valCols = "TPM", nGenes = 1000L, nBoot = 100L, minGenes = 200L, ...,
-  na.rm = TRUE)
+  na.rm = TRUE, replace = TRUE)
 }
 \arguments{
 \item{data}{A data frame containing all the data required}
@@ -30,6 +30,8 @@ bootMedians(data, testIds, refIds, idCol = 1L, binCol = "lengthBin",
 \item{...}{Passed to the function \code{mean} internally}
 
 \item{na.rm}{\code{logical}. Also passed internally to the function \code{mean}}
+
+\item{replace}{\code{logical}. Should the bootstrap use sampling with replacement (\code{replace = TRUE}) or without}
 }
 \value{
 A \code{list} with components:
@@ -39,7 +41,8 @@ A \code{list} with components:
  \item \code{$nGenes} The number of genes sampled at each bootstrap iteration
  \item \code{$nBoot} The number of bootstrap iterations
  \item \code{$testBins} The distributions of genes amongst the binning variable in the set of test IDs
- \item \code{$refBins} The distributions of genes amongst the binning variable in the set of reference IDs
+ \item \code{$refBins} The distributions of genes amongst the binning variable in the set of reference IDs.
+ The final column represents the sampling probability for each individual gene in the corresponding bin
 }
 }
 \description{
