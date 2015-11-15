@@ -6,7 +6,7 @@
 \usage{
 bootMedians(data, testIds, refIds, idCol = 1L, binCol = "lengthBin",
   valCols = "TPM", nGenes = 1000L, nBoot = 100L, minGenes = 200L, ...,
-  na.rm = TRUE, replace = TRUE)
+  na.rm = TRUE, replace = TRUE, maxP)
 }
 \arguments{
 \item{data}{A data frame containing all the data required}
@@ -32,6 +32,9 @@ bootMedians(data, testIds, refIds, idCol = 1L, binCol = "lengthBin",
 \item{na.rm}{\code{logical}. Also passed internally to the function \code{mean}}
 
 \item{replace}{\code{logical}. Should the bootstrap use sampling with replacement (\code{replace = TRUE}) or without}
+
+\item{maxP}{The maximum probability (weight) allowed for an individual gene in the reference set. 
+Defaults to \code{1/nGenes}}
 }
 \value{
 A \code{list} with components:
@@ -40,6 +43,7 @@ A \code{list} with components:
  \item \code{$p} The proportion of sampled differences which are > 0
  \item \code{$nGenes} The number of genes sampled at each bootstrap iteration
  \item \code{$nBoot} The number of bootstrap iterations
+ \item \code{sampleSizes} A named numeric vector with the sample sizes for each dataset
  \item \code{$testBins} The distributions of genes amongst the binning variable in the set of test IDs
  \item \code{$refBins} The distributions of genes amongst the binning variable in the set of reference IDs.
  The final column represents the sampling probability for each individual gene in the corresponding bin
@@ -63,6 +67,11 @@ At each bootstrap iteration, the median values for each column specified will be
 with the reference values then subtracted from the tested values.
 This allows direct comparison of these values as they will be drawn from similar
 distributions based on the binning variable used.
+
+If any genes have a probability of being resampled > \code{maxP} they may exert undue influence on the results.
+If any are found the process will stop to allow removal of this grouping.
+Alternatively, the value for \code{maxP} can be reset up to a maximum of 1, 
+which would represent maximum permissability.
 }
 \author{
 Steve Pederson
