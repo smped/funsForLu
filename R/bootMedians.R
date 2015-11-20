@@ -51,6 +51,8 @@
 #'  \item \code{$testBins} The distributions of genes amongst the binning variable in the set of test IDs
 #'  \item \code{$refBins} The distributions of genes amongst the binning variable in the set of reference IDs.
 #'  The final column represents the sampling probability for each individual gene in the corresponding bin
+#'  \item \code{$missingBins} These are the bins not commonly represented in the dataset. 
+#'  If any are found a non-fatal warning message will be printed during running of the process.
 #'}
 #' @import dplyr
 #'
@@ -138,18 +140,43 @@ bootMedians <- function(data, testIds, refIds,
   
   # Now just get the key information from the supplied data
   data <- select(data, ID, bins, one_of(valCols))
+  data$test <- data$ID %in% testIds
+  allBins <- dcast(count_(data, vars=c("test", "bins")), bins~test, fill=0, value.var="n")
+  colnames(allBins)[2:3] <- c("ref", "test")
+  
+  # Check the compatability of this dataset
+  missingBins <- filter(allBins, ref==0 | test == 0)
+  if (nrow(missingBins) > 0 ) {
+    # If some bins are missing from either dataset, 
+    # print a message and set the sampling probability to be zero
+    missMess <- paste0("Some bins are not present in both datasets. This is not a fatal error, ",
+                       "however, please be aware that\n", 
+                       sum(missingBins$test), 
+                       " genes (", 
+                       round(100*sum(missingBins$test)/length(testIds), 2), 
+                       "%) will be given a zero sampling probability in the test dataset, and\n",
+                       sum(missingBins$ref), 
+                       " genes (", 
+                       round(100*sum(missingBins$ref)/length(refIds), 2), 
+                       "%) will be given a zero sampling probability in the reference dataset.\n",
+                       "Please use your discretion to decide if this is acceptable.")                      
+    message(missMess)
+    allBins$test[allBins$bins %in% missingBins$bins] <- 0
+    allBins$ref[allBins$bins %in% missingBins$bins] <- 0
+    
+  }
   
   # Set up the test data frame
   testData <- filter(data, ID %in% testIds)
-  testBins <- summarise(group_by(testData, bins), count = n())
+  testBins <- select(allBins, bins, count = test)
   testBins <- mutate(ungroup(testBins), p = count / sum(count))
   
   # Set up the reference data frame
   refData <- filter(data, ID %in% refIds)
-  refBins <- summarise(group_by(refData, bins), count = n())
-  refBins <- mutate(ungroup(refBins), 
-                    p = count / sum(count), 
-                    effP = testBins$p / count) # This is the probability/gene
+  refBins <- select(allBins, bins, count = ref)
+  refBins <- mutate(ungroup(refBins), p = count / sum(count))
+  refBins$effP <- testBins$p / refBins$count # This is the probability/gene
+  refBins$effP[is.nan(refBins$effP)] <- 0
   
   # Assign bin weights for the reference dataset to ensure the matching sampling distributions
   wRef <- refBins$effP[match(refData$bins, refBins$bin)]
@@ -189,7 +216,8 @@ bootMedians <- function(data, testIds, refIds,
               sampleSizes = c(test = length(testIds), 
                               ref = length(refIds)),
               testBins = testBins,
-              refBins = refBins))
+              refBins = refBins,
+              missingBins = missingBins))
   
 }
 

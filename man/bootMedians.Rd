@@ -47,6 +47,8 @@ A \code{list} with components:
  \item \code{$testBins} The distributions of genes amongst the binning variable in the set of test IDs
  \item \code{$refBins} The distributions of genes amongst the binning variable in the set of reference IDs.
  The final column represents the sampling probability for each individual gene in the corresponding bin
+ \item \code{$missingBins} These are the bins not commonly represented in the dataset. 
+ If any are found a non-fatal warning message will be printed during running of the process.
 }
 }
 \description{
