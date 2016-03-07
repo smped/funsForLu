@@ -3,6 +3,8 @@
 export(binsFromCols)
 export(bootMeans)
 export(bootMedians)
+export(getCI)
 export(getVennCounts)
 import(VennDiagram)
 import(dplyr)
+import(magrittr)
