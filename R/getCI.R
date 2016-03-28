@@ -20,9 +20,10 @@
 getCI <- function(x, alpha, combined = FALSE){
   
   chkNames <- x %>% # Check that all tissues have the correct structure.
-    lapply(function(x){
+    vapply(function(x){
       "samples" %in% names(x)
-    })
+    },
+    logical(1))
   stopifnot(chkNames)
   
   if (!combined) {
