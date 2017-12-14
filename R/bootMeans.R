@@ -124,7 +124,8 @@ bootMeans <- function(valCol, data, testIds, refIds,
     valCol <- colnames(data)[valCol]
   }
   if (is.character(valCol)){
-    valCol <- grep(valCol, colnames(data), value = TRUE)
+    #valCol <- grep(valCol, colnames(data), value = TRUE)
+    valCol <- match.arg(valCol, colnames(data))
   }
   if (length(valCol) != 1) stop("Invalid specification of the column name for the value column.\n",
                                 "Either it doesn't exist, or it matches multiple columns.")
